@@ -1,0 +1,30 @@
+===================================================================
+       HUONG DAN SU DUNG UNG DUNG LUU TRU FILE & ANH - FILEVAULT
+===================================================================
+
+1. YEU CAU HE THONG:
+   - May tinh co cai dat Node.js (tai mien phi tai: https://nodejs.org)
+
+2. CACH KHOI DONG UNG DUNG:
+   - Cach 1 (Nhanh nhat):
+     Chi can NHAP DUP vao file "start.bat".
+     Chuong trinh se tu dong cai dat (neu chua co), khoi dong may chu va mo trinh duyet web tai:
+     http://localhost:5000
+
+   - Cach 2 (Bang dong lenh):
+     Mo PowerShell hoac Terminal tai thu muc nay va chay:
+     cd server
+     npm start
+
+3. CAC TINH NANG CHINH:
+   - Keo & tha anh va tap tin de tai len nhanh chong.
+   - Xem truoc anh (zoom, xoay, chuyen anh), video, nhac va tai lieu PDF.
+   - Tu dong phan loai anh, tai lieu, video/am thanh, file nen.
+   - Danh dau sao yeu thich, tim kiem theo ten file.
+   - Tai tung file hoac chon nhieu file de tai ve dang file ZIP.
+   - Ho tro giao dien Sang / Toi (Dark/Light mode).
+
+4. THU MUC LUU TRU:
+   - Cac file ban tai len se duoc luu an toan trong thu muc "server/uploads".
+
+Chuc ban co trai nghiem su dung tuyet voi!
