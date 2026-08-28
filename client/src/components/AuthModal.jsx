@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock,
   User,
@@ -11,14 +11,105 @@ import {
   LogIn
 } from 'lucide-react';
 
+const GOOGLE_CLIENT_ID = window.__GOOGLE_CLIENT_ID__ || '';
+
 export default function AuthModal({ onAuthSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState(GOOGLE_CLIENT_ID);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const googleBtnRef = useRef(null);
+
+  // Lay Client ID tu server neu chua co
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.googleClientId) {
+          setGoogleClientId(data.data.googleClientId);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Khoi tao Google Sign-In
+  useEffect(() => {
+    const activeClientId = googleClientId || GOOGLE_CLIENT_ID;
+    if (!activeClientId) return;
+
+    const initGoogle = () => {
+      if (!window.google?.accounts?.id) return;
+
+      window.google.accounts.id.initialize({
+        client_id: activeClientId,
+        callback: handleGoogleResponse,
+        auto_select: false,
+      });
+
+      if (googleBtnRef.current) {
+        googleBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: '100%',
+          text: 'signin_with',
+          shape: 'pill',
+          logo_alignment: 'left',
+        });
+      }
+    };
+
+    // Neu script da tai xong
+    if (window.google?.accounts?.id) {
+      initGoogle();
+      return;
+    }
+
+    // Tai script Google Identity Services
+    const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', initGoogle);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = initGoogle;
+    document.head.appendChild(script);
+  }, [googleClientId, isRegister]);
+
+  const handleGoogleResponse = async (response) => {
+    if (!response.credential) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.data) {
+        onAuthSuccess(data.data.user, data.data.token);
+      } else {
+        throw new Error(data.message || 'Xac thuc Google khong thanh cong');
+      }
+    } catch (err) {
+      setError(err.message || 'Loi khi dang nhap bang Google');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,6 +208,23 @@ export default function AuthModal({ onAuthSuccess }) {
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Nut Dang nhap bang Google */}
+          {(googleClientId || GOOGLE_CLIENT_ID) && (
+            <div className="space-y-3">
+              <div
+                ref={googleBtnRef}
+                className="flex justify-center [&>div]:!w-full [&_iframe]:!w-full"
+              />
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase">
+                  hoac
+                </span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+              </div>
+            </div>
+          )}
+
           {/* Tên đăng nhập */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">

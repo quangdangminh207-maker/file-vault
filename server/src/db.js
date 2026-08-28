@@ -129,6 +129,54 @@ export const db = {
     return { success: true, user: safeUser, token };
   },
 
+  loginOrRegisterGoogle({ googleId, email, displayName, avatar }) {
+    const data = loadData();
+
+    // Tim user da lien ket Google truoc do
+    let user = data.users.find(u => u.googleId === googleId);
+
+    // Neu chua co, tim theo email
+    if (!user) {
+      user = data.users.find(u => u.email === email);
+    }
+
+    if (user) {
+      // Cap nhat thong tin Google neu can
+      if (!user.googleId) user.googleId = googleId;
+      if (!user.avatar && avatar) user.avatar = avatar;
+      if (!user.email && email) user.email = email;
+      saveData(data);
+    } else {
+      // Tao tai khoan moi tu thong tin Google
+      const userId = crypto.randomUUID();
+      const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+      const usernameBase = (email.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      user = {
+        id: userId,
+        username: usernameBase,
+        displayName: displayName || usernameBase,
+        passwordHash: '',
+        googleId: googleId,
+        email: email,
+        avatar: avatar || '',
+        avatarColor: randomColor,
+        createdAt: new Date().toISOString(),
+      };
+
+      data.users.push(user);
+      saveData(data);
+    }
+
+    // Tao token phien dang nhap
+    const token = crypto.randomBytes(32).toString('hex');
+    data.sessions[token] = { userId: user.id, createdAt: Date.now() };
+    saveData(data);
+
+    const { passwordHash, ...safeUser } = user;
+    return { success: true, user: safeUser, token };
+  },
+
   loginUser({ username, password }) {
     const data = loadData();
     const cleanUsername = username.trim().toLowerCase();

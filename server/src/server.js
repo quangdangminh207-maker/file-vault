@@ -80,6 +80,16 @@ function authMiddleware(req, res, next) {
 
 // ================= AUTH ROUTES =================
 
+// Trả về cấu hình Google Client ID cho frontend
+app.get('/api/config', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      googleClientId: process.env.GOOGLE_CLIENT_ID || ''
+    }
+  });
+});
+
 // Đăng ký tài khoản mới
 app.post('/api/auth/register', (req, res) => {
   try {
@@ -142,6 +152,42 @@ app.post('/api/auth/logout', (req, res) => {
     db.logoutUser(token);
   }
   res.json({ success: true, message: 'Đã đăng xuất thành công' });
+});
+
+// Đăng nhập bằng Google OAuth
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ success: false, message: 'Thiếu mã xác thực Google' });
+    }
+
+    // Xác minh ID token bằng Google API
+    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!verifyRes.ok) {
+      return res.status(401).json({ success: false, message: 'Mã xác thực Google không hợp lệ' });
+    }
+
+    const payload = await verifyRes.json();
+    if (!payload.sub || !payload.email) {
+      return res.status(401).json({ success: false, message: 'Không thể xác minh tài khoản Google' });
+    }
+
+    const result = db.loginOrRegisterGoogle({
+      googleId: payload.sub,
+      email: payload.email,
+      displayName: payload.name || payload.email.split('@')[0],
+      avatar: payload.picture || '',
+    });
+
+    res.json({
+      success: true,
+      message: 'Đăng nhập bằng Google thành công',
+      data: { user: result.user, token: result.token }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi khi đăng nhập bằng Google', error: error.message });
+  }
 });
 
 // ================= FILE MANAGEMENT ROUTES (BẢO VỆ BỞI AUTH) =================
