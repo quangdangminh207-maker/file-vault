@@ -85,7 +85,7 @@ app.get('/api/config', (req, res) => {
   res.json({
     success: true,
     data: {
-      googleClientId: process.env.GOOGLE_CLIENT_ID || ''
+      googleClientId: process.env.GOOGLE_CLIENT_ID || '1028638565090-2ogecvmsvmiq44pkbrspr83ku0d9reb8.apps.googleusercontent.com'
     }
   });
 });
