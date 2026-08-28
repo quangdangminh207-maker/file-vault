@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import archiver from 'archiver';
+import { v2 as cloudinary } from 'cloudinary';
 import { db, detectCategory } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +16,38 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
+
+// Cấu hình Cloudinary (25GB Đám mây miễn phí vĩnh viễn không mất file)
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
+
+async function uploadToCloudinaryIfConfigured(localFilePath, mimeType) {
+  if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+    try {
+      const resourceType = mimeType.startsWith('image/')
+        ? 'image'
+        : mimeType.startsWith('video/') || mimeType.startsWith('audio/')
+        ? 'video'
+        : 'raw';
+
+      const res = await cloudinary.uploader.upload(localFilePath, {
+        resource_type: resourceType,
+        folder: 'file-vault-uploads',
+        use_filename: true,
+      });
+
+      return res.secure_url;
+    } catch (err) {
+      console.error('Lỗi upload Cloudinary:', err);
+    }
+  }
+  return null;
+}
 
 // Đảm bảo thư mục uploads tồn tại
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -322,6 +355,12 @@ app.post('/api/upload/chunk-complete', authMiddleware, async (req, res) => {
 
     writeStream.end();
 
+    let filePath = `/uploads/${uniqueName}`;
+    const cloudUrl = await uploadToCloudinaryIfConfigured(targetPath, mimeType || '');
+    if (cloudUrl) {
+      filePath = cloudUrl;
+    }
+
     const category = detectCategory(mimeType, originalName);
     const fileId = crypto.randomUUID();
 
@@ -330,7 +369,7 @@ app.post('/api/upload/chunk-complete', authMiddleware, async (req, res) => {
       userId: req.user.id,
       originalName: originalName,
       storedName: uniqueName,
-      path: `/uploads/${uniqueName}`,
+      path: filePath,
       mimeType: mimeType || 'application/octet-stream',
       size: Number(size) || 0,
       category: category,
