@@ -166,7 +166,7 @@ export default function AuthModal({ onAuthSuccess }) {
           <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
             <ShieldCheck className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-xl font-extrabold tracking-tight">Kho Lưu Trữ FileVault</h2>
+          <h2 className="text-xl font-extrabold tracking-tight">Kho Lưu Trữ Nhóm Nói Xấu X2</h2>
           <p className="text-xs text-brand-100 mt-1">
             Đăng nhập để truy cập kho ảnh & tập tin riêng tư của bạn
           </p>
