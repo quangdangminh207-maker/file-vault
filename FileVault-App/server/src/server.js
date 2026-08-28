@@ -382,6 +382,6 @@ app.get('*', (req, res, next) => {
 });
 
 // Khởi chạy server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`🚀 Kho lưu trữ FileVault đang chạy tại: http://localhost:${PORT}`);
 });

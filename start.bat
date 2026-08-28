@@ -1,26 +1,62 @@
 @echo off
 title Kho Luu Tru FileVault
-echo ====================================================
-echo       KHO LUU TRU ANH VA TAP TIN - FILEVAULT
-echo ====================================================
+color 0b
+
+echo ================================================================
+echo           KHO LUU TRU ANH VA TAP TIN - FILEVAULT
+echo ================================================================
 echo.
 
-cd /d "%~dp0server"
-
-if not exist "node_modules" (
-    echo [1/2] Dang cai dat cac thu vien can thiet (chi chay lan dau)...
-    call npm install
+:: 1. Kiem tra Node.js
+where node >nul 2>nul
+if %errorlevel% neq 0 (
+    if exist "C:\Program Files\nodejs\node.exe" (
+        set "PATH=%PATH%;C:\Program Files\nodejs"
+    ) else (
+        color 0c
+        echo [LOI] May tinh chua cai dat Node.js!
+        echo Vui long tai Node.js tai: https://nodejs.org
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
-echo.
-echo [2/2] Dang khoi dong may chu tai http://localhost:5000 ...
-echo.
-echo ====================================================
-echo Hay mo trinh duyet va truy cap: http://localhost:5000
-echo ====================================================
+:: 2. Giai phong cong 5000 neu bi chiem truoc do
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5000" ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>nul
+
+:: 3. Chuyen den thu muc du an
+cd /d "%~dp0"
+
+:: 4. Kiem tra thu vien server
+if not exist "server\node_modules" goto INSTALL_DEPS
+goto START_SERVER
+
+:INSTALL_DEPS
+echo [1/2] Dang cai dat thu vien may chu...
+cd server
+call npm install
+cd /d "%~dp0"
 echo.
 
-timeout /t 2 /nobreak >nul
-start http://localhost:5000
+:START_SERVER
+echo [2/2] Dang khoi dong may chu...
+echo.
+echo ================================================================
+echo  UNG DUNG DA SAN SANG!
+echo  Trinh duyet web se mo tai: http://localhost:5000
+echo  Vui long khong tat cua so nay khi dang su dung
+echo ================================================================
+echo.
+
+start "" "http://localhost:5000"
+
+cd /d "%~dp0server"
 node src/server.js
-pause
+
+if %errorlevel% neq 0 (
+    echo.
+    color 0c
+    echo [LOI] May chu bi dung!
+    pause
+)
