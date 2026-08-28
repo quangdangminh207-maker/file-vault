@@ -266,6 +266,92 @@ app.post('/api/upload', authMiddleware, upload.array('files', 50), (req, res) =>
   }
 });
 
+// Config cho chunk upload lưu tạm trong uploads/temp
+const chunkUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const tempDir = path.join(UPLOAD_DIR, 'temp');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      cb(null, tempDir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.chunk`);
+    }
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+// Tải lên từng phân đoạn (Chunk Upload) cho file lớn (GB)
+app.post('/api/upload/chunk', authMiddleware, chunkUpload.single('chunk'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Thiếu dữ liệu phân đoạn' });
+    }
+    res.json({
+      success: true,
+      tempPath: req.file.filename
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi upload phân đoạn', error: error.message });
+  }
+});
+
+// Hoàn tất ghép các phân đoạn file lớn
+app.post('/api/upload/chunk-complete', authMiddleware, async (req, res) => {
+  try {
+    const { originalName, chunkFiles, mimeType, size } = req.body;
+    if (!chunkFiles || !Array.isArray(chunkFiles) || chunkFiles.length === 0) {
+      return res.status(400).json({ success: false, message: 'Danh sách phân đoạn không hợp lệ' });
+    }
+
+    const tempDir = path.join(UPLOAD_DIR, 'temp');
+    const ext = path.extname(originalName || '');
+    const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+    const targetPath = path.join(UPLOAD_DIR, uniqueName);
+
+    const writeStream = fs.createWriteStream(targetPath);
+
+    for (const chunkFile of chunkFiles) {
+      const chunkPath = path.join(tempDir, chunkFile);
+      if (fs.existsSync(chunkPath)) {
+        const data = fs.readFileSync(chunkPath);
+        writeStream.write(data);
+        fs.unlinkSync(chunkPath); // Xóa chunk tạm
+      }
+    }
+
+    writeStream.end();
+
+    const category = detectCategory(mimeType, originalName);
+    const fileId = crypto.randomUUID();
+
+    const newFile = {
+      id: fileId,
+      userId: req.user.id,
+      originalName: originalName,
+      storedName: uniqueName,
+      path: `/uploads/${uniqueName}`,
+      mimeType: mimeType || 'application/octet-stream',
+      size: Number(size) || 0,
+      category: category,
+      isFavorite: false,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    db.addMultiple([newFile]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Đã tải lên và ghép tập tin thành công',
+      data: [newFile]
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi ghép tập tin', error: error.message });
+  }
+});
+
 // 4. Xem chi tiết 1 file
 app.get('/api/files/:id', authMiddleware, (req, res) => {
   try {

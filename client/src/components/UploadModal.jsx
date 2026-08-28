@@ -12,10 +12,14 @@ import {
 import confetti from 'canvas-confetti';
 import { formatBytes } from '../utils/formatters';
 
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB per chunk
+
 export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentFileName, setCurrentFileName] = useState('');
+  const [uploadSpeed, setUploadSpeed] = useState('');
   const [error, setError] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
@@ -44,50 +48,143 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
+  // Upload 1 file theo phan doan (Chunked Upload)
+  const uploadSingleFileChunked = async (file, token, totalBytesUploaded, overallTotalSize) => {
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const chunkFiles = [];
+    let fileUploadedBytes = 0;
+    const startTime = Date.now();
 
-    setUploading(true);
-    setProgress(20);
-    setError(null);
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(file.size, start + CHUNK_SIZE);
+      const chunkBlob = file.slice(start, end);
 
-    const formData = new FormData();
-    selectedFiles.forEach((file) => {
-      formData.append('files', file);
-    });
+      const chunkFormData = new FormData();
+      chunkFormData.append('chunk', chunkBlob, `${file.name}.part${i}`);
 
-    try {
-      setProgress(50);
-      const token = localStorage.getItem('filevault_token');
-      const res = await fetch('/api/upload', {
+      const chunkRes = await fetch('/api/upload/chunk', {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: formData,
+        body: chunkFormData,
       });
 
-      const data = await res.json();
-      setProgress(100);
-
-      if (data.success) {
-        confetti({
-          particleCount: 80,
-          spread: 60,
-          origin: { y: 0.7 },
-        });
-        setSelectedFiles([]);
-        onUploadSuccess();
-        setTimeout(() => {
-          setUploading(false);
-          setProgress(0);
-          onClose();
-        }, 500);
-      } else {
-        throw new Error(data.message || 'Lỗi khi tải lên tập tin');
+      if (!chunkRes.ok) {
+        const errText = await chunkRes.text();
+        let errMsg = 'Lỗi phân đoạn upload';
+        try {
+          const parsed = JSON.parse(errText);
+          errMsg = parsed.message || errMsg;
+        } catch {
+          errMsg = `Máy chủ phản hồi lỗi (${chunkRes.status})`;
+        }
+        throw new Error(errMsg);
       }
+
+      const chunkData = await chunkRes.json();
+      if (!chunkData.success) {
+        throw new Error(chunkData.message || 'Lỗi tải lên phân đoạn');
+      }
+
+      chunkFiles.push(chunkData.tempPath);
+      fileUploadedBytes += (end - start);
+
+      // Tinh tien trinh tong the & toc do
+      const now = Date.now();
+      const durationSec = Math.max(0.5, (now - startTime) / 1000);
+      const speed = (fileUploadedBytes / (1024 * 1024)) / durationSec;
+      setUploadSpeed(`${speed.toFixed(1)} MB/s`);
+
+      const currentTotal = totalBytesUploaded + fileUploadedBytes;
+      const overallPercent = Math.min(99, Math.round((currentTotal / overallTotalSize) * 100));
+      setProgress(overallPercent);
+    }
+
+    // Hoan tat ghep file
+    const completeRes = await fetch('/api/upload/chunk-complete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        originalName: file.name,
+        chunkFiles: chunkFiles,
+        mimeType: file.type,
+        size: file.size,
+      }),
+    });
+
+    if (!completeRes.ok) {
+      throw new Error('Không thể ghép phân đoạn tập tin');
+    }
+
+    const completeData = await completeRes.json();
+    if (!completeData.success) {
+      throw new Error(completeData.message || 'Lỗi hoàn tất tải lên tập tin');
+    }
+
+    return completeData.data;
+  };
+
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) return;
+
+    setUploading(true);
+    setProgress(1);
+    setError(null);
+
+    const token = localStorage.getItem('filevault_token');
+    const overallTotalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+    let totalBytesUploaded = 0;
+
+    try {
+      for (let index = 0; index < selectedFiles.length; index++) {
+        const file = selectedFiles[index];
+        setCurrentFileName(`(${index + 1}/${selectedFiles.length}) ${file.name}`);
+
+        // Neu file nho <= 10MB thi thu dung standard upload, neu lon hon dung Chunked Upload
+        if (file.size > 10 * 1024 * 1024 || selectedFiles.length === 1) {
+          await uploadSingleFileChunked(file, token, totalBytesUploaded, overallTotalSize);
+        } else {
+          // Upload Standard
+          const formData = new FormData();
+          formData.append('files', file);
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: formData,
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || 'Lỗi khi tải lên tập tin');
+        }
+
+        totalBytesUploaded += file.size;
+        const percent = Math.min(99, Math.round((totalBytesUploaded / overallTotalSize) * 100));
+        setProgress(percent);
+      }
+
+      setProgress(100);
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.7 },
+      });
+      setSelectedFiles([]);
+      onUploadSuccess();
+      setTimeout(() => {
+        setUploading(false);
+        setProgress(0);
+        setCurrentFileName('');
+        setUploadSpeed('');
+        onClose();
+      }, 600);
     } catch (err) {
-      setError(err.message || 'Không thể kết nối đến máy chủ lưu trữ');
+      setError(err.message || 'Không thể tải lên tập tin');
       setUploading(false);
     }
   };
@@ -99,7 +196,7 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="text-lg font-bold text-slate-800 dark:text-white">Tải Lên Ảnh & Tập Tin</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Chọn hoặc kéo thả tập tin từ máy tính</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Hỗ trợ tải lên file lớn (GB) siêu tốc không giới hạn</p>
           </div>
           <button
             onClick={onClose}
@@ -141,7 +238,7 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
               Nhấn để chọn file hoặc kéo thả vào đây
             </p>
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-              Hỗ trợ hình ảnh (PNG, JPG, WebP, GIF), PDF, tài liệu Word, Excel, Video, Zip...
+              Tải siêu tốc phân đoạn (Chunked): Hình ảnh, Video 4K, File nén ZIP 2GB - 10GB...
             </p>
           </div>
 
@@ -197,15 +294,18 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
           {uploading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-500" />
-                  Đang tải lên...
+                <span className="flex items-center gap-1.5 truncate max-w-[70%]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-500 shrink-0" />
+                  <span className="truncate">{currentFileName || 'Đang tải lên...'}</span>
                 </span>
-                <span>{progress}%</span>
+                <span className="font-semibold text-brand-600 dark:text-brand-400">
+                  {uploadSpeed && <span className="mr-2 text-slate-400 font-normal">{uploadSpeed}</span>}
+                  {progress}%
+                </span>
               </div>
-              <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 transition-all duration-300 rounded-full"
+                  className="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-purple-500 transition-all duration-200 rounded-full"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -238,7 +338,7 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
             {uploading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang xử lý...</span>
+                <span>Đang tải... ({progress}%)</span>
               </>
             ) : (
               <>
