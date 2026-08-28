@@ -33,7 +33,7 @@ export default function Sidebar({
   onOpenStats,
 }) {
   const totalUsed = stats?.totalSize || 0;
-  const maxStorage = 5 * 1024 * 1024 * 1024; // Giả định 5GB hạn mức demo
+  const maxStorage = 100 * 1024 * 1024 * 1024; // Hạn mức 100GB
   const usedPercent = Math.min(100, Math.round((totalUsed / maxStorage) * 100));
 
   const getItemCount = (id) => {

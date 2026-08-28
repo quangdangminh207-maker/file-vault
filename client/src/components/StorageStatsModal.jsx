@@ -23,7 +23,7 @@ export default function StorageStatsModal({ stats, isOpen, onClose }) {
   if (!isOpen || !stats) return null;
 
   const totalUsed = stats.totalSize || 0;
-  const maxStorage = 5 * 1024 * 1024 * 1024; // 5GB
+  const maxStorage = 100 * 1024 * 1024 * 1024; // 100GB
   const percentUsed = Math.min(100, ((totalUsed / maxStorage) * 100).toFixed(1));
 
   return (
