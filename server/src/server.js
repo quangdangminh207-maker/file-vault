@@ -18,35 +18,35 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads
 const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
 
 // Cấu hình Cloudinary (25GB Đám mây miễn phí vĩnh viễn không mất file)
-if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-}
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'omtdjvpv';
+const API_KEY = process.env.CLOUDINARY_API_KEY || '829821919568115';
+const API_SECRET = process.env.CLOUDINARY_API_SECRET || process.env.LOUDINARY_API_SECRET || 'yAHm8WNGd7UmOGnMs0EPhPAOPtg';
+
+cloudinary.config({
+  cloud_name: CLOUD_NAME,
+  api_key: API_KEY,
+  api_secret: API_SECRET,
+});
 
 async function uploadToCloudinaryIfConfigured(localFilePath, mimeType) {
-  if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-    try {
-      const resourceType = mimeType.startsWith('image/')
-        ? 'image'
-        : mimeType.startsWith('video/') || mimeType.startsWith('audio/')
-        ? 'video'
-        : 'raw';
+  try {
+    const resourceType = mimeType.startsWith('image/')
+      ? 'image'
+      : mimeType.startsWith('video/') || mimeType.startsWith('audio/')
+      ? 'video'
+      : 'raw';
 
-      const res = await cloudinary.uploader.upload(localFilePath, {
-        resource_type: resourceType,
-        folder: 'file-vault-uploads',
-        use_filename: true,
-      });
+    const res = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: resourceType,
+      folder: 'file-vault-uploads',
+      use_filename: true,
+    });
 
-      return res.secure_url;
-    } catch (err) {
-      console.error('Lỗi upload Cloudinary:', err);
-    }
+    return res.secure_url;
+  } catch (err) {
+    console.error('Lỗi upload Cloudinary:', err);
+    return null;
   }
-  return null;
 }
 
 // Đảm bảo thư mục uploads tồn tại
@@ -239,7 +239,7 @@ app.get('/api/stats', authMiddleware, (req, res) => {
 app.get('/api/files', authMiddleware, async (req, res) => {
   try {
     // Tự động đồng bộ và phục hồi toàn bộ ảnh/tệp từ Cloudinary nếu server vừa khởi động lại
-    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+    if (CLOUD_NAME && API_KEY && API_SECRET) {
       try {
         const cloudResources = await cloudinary.api.resources({
           type: 'upload',
