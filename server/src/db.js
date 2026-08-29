@@ -323,6 +323,44 @@ export const db = {
     return deletedFiles;
   },
 
+  syncCloudinaryFiles(resources = [], userId) {
+    const data = loadData();
+    let addedCount = 0;
+
+    for (const res of resources) {
+      // Kiem tra neu URL hoac public_id da ton tai trong data.json
+      const exists = data.files.some(f => f.path === res.secure_url || f.storedName === res.public_id);
+      if (!exists) {
+        const ext = res.format ? `.${res.format}` : '';
+        const originalName = res.original_filename ? `${res.original_filename}${ext}` : (res.public_id.split('/').pop() + ext);
+        const mimeType = res.resource_type === 'image' ? `image/${res.format || 'jpeg'}` : (res.resource_type === 'video' ? `video/${res.format || 'mp4'}` : 'application/octet-stream');
+
+        const category = detectCategory(mimeType, originalName);
+
+        data.files.push({
+          id: crypto.randomUUID(),
+          userId: userId || (data.users[0]?.id || 'default-user'),
+          originalName: originalName,
+          storedName: res.public_id,
+          path: res.secure_url,
+          mimeType: mimeType,
+          size: res.bytes || 0,
+          category: category,
+          isFavorite: false,
+          tags: [],
+          createdAt: res.created_at || new Date().toISOString(),
+          updatedAt: res.created_at || new Date().toISOString()
+        });
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      saveData(data);
+    }
+    return addedCount;
+  },
+
   getStats(userId) {
     const data = loadData();
     const userFiles = data.files.filter(f => !f.userId || f.userId === userId);

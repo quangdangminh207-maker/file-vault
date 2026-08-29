@@ -236,8 +236,24 @@ app.get('/api/stats', authMiddleware, (req, res) => {
 });
 
 // 2. Lấy danh sách files của người dùng
-app.get('/api/files', authMiddleware, (req, res) => {
+app.get('/api/files', authMiddleware, async (req, res) => {
   try {
+    // Tự động đồng bộ và phục hồi toàn bộ ảnh/tệp từ Cloudinary nếu server vừa khởi động lại
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+      try {
+        const cloudResources = await cloudinary.api.resources({
+          type: 'upload',
+          prefix: 'file-vault-uploads',
+          max_results: 500
+        });
+        if (cloudResources && cloudResources.resources) {
+          db.syncCloudinaryFiles(cloudResources.resources, req.user.id);
+        }
+      } catch (err) {
+        // Bỏ qua nếu Cloudinary API chưa sẵn sàng
+      }
+    }
+
     const { category, search, favoriteOnly, sortBy, sortOrder } = req.query;
     const files = db.getAll({
       userId: req.user.id,
@@ -254,13 +270,14 @@ app.get('/api/files', authMiddleware, (req, res) => {
 });
 
 // 3. Tải lên 1 hoặc nhiều files
-app.post('/api/upload', authMiddleware, upload.array('files', 50), (req, res) => {
+app.post('/api/upload', authMiddleware, upload.array('files', 50), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'Không có tập tin nào được chọn' });
     }
 
-    const newFiles = req.files.map(file => {
+    const newFiles = [];
+    for (const file of req.files) {
       let originalName = file.originalname;
       try {
         originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
@@ -270,13 +287,20 @@ app.post('/api/upload', authMiddleware, upload.array('files', 50), (req, res) =>
 
       const category = detectCategory(file.mimetype, originalName);
       const fileId = crypto.randomUUID();
+      const localFilePath = path.join(UPLOAD_DIR, file.filename);
 
-      return {
+      let filePath = `/uploads/${file.filename}`;
+      const cloudUrl = await uploadToCloudinaryIfConfigured(localFilePath, file.mimetype || '');
+      if (cloudUrl) {
+        filePath = cloudUrl;
+      }
+
+      newFiles.push({
         id: fileId,
         userId: req.user.id,
         originalName: originalName,
         storedName: file.filename,
-        path: `/uploads/${file.filename}`,
+        path: filePath,
         mimeType: file.mimetype,
         size: file.size,
         category: category,
@@ -284,8 +308,8 @@ app.post('/api/upload', authMiddleware, upload.array('files', 50), (req, res) =>
         tags: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      };
-    });
+      });
+    }
 
     db.addMultiple(newFiles);
 
