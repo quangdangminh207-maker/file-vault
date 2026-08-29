@@ -8,8 +8,13 @@ import {
   Sparkles,
   ShieldCheck,
   UserPlus,
-  LogIn
+  LogIn,
+  Cloud,
+  Zap,
+  Shield
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { sound } from '../utils/audio';
 
 const GOOGLE_CLIENT_ID = window.__GOOGLE_CLIENT_ID__ || '';
 
@@ -63,13 +68,11 @@ export default function AuthModal({ onAuthSuccess }) {
       }
     };
 
-    // Neu script da tai xong
     if (window.google?.accounts?.id) {
       initGoogle();
       return;
     }
 
-    // Tai script Google Identity Services
     const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
     if (existingScript) {
       existingScript.addEventListener('load', initGoogle);
@@ -100,12 +103,18 @@ export default function AuthModal({ onAuthSuccess }) {
       const data = await res.json();
 
       if (data.success && data.data) {
+        sound.success();
+        confetti({
+          particleCount: 70,
+          spread: 60,
+          origin: { y: 0.6 },
+        });
         onAuthSuccess(data.data.user, data.data.token);
       } else {
-        throw new Error(data.message || 'Xac thuc Google khong thanh cong');
+        throw new Error(data.message || 'Xác thực Google không thành công');
       }
     } catch (err) {
-      setError(err.message || 'Loi khi dang nhap bang Google');
+      setError(err.message || 'Lỗi khi đăng nhập bằng Google');
     } finally {
       setLoading(false);
     }
@@ -147,6 +156,12 @@ export default function AuthModal({ onAuthSuccess }) {
       const data = await res.json();
 
       if (data.success && data.data) {
+        sound.success();
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
         onAuthSuccess(data.data.user, data.data.token);
       } else {
         throw new Error(data.message || 'Xác thực không thành công');
@@ -159,69 +174,98 @@ export default function AuthModal({ onAuthSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-in">
-        {/* Banner Header */}
-        <div className="relative bg-gradient-to-tr from-brand-600 via-indigo-600 to-purple-600 p-6 text-white text-center">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
-            <ShieldCheck className="w-8 h-8 text-white" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl overflow-y-auto select-none">
+      {/* Background Animated Aurora Glow Blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-tr from-brand-600/30 via-indigo-500/20 to-transparent blur-3xl animate-pulse" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-gradient-to-bl from-purple-600/30 via-pink-500/20 to-transparent blur-3xl animate-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl" />
+      </div>
+
+      {/* Main Glass Card */}
+      <div className="relative w-full max-w-md my-8 bg-white/95 dark:bg-slate-900/90 border border-white/20 dark:border-slate-700/60 rounded-[32px] shadow-2xl shadow-brand-500/15 overflow-hidden backdrop-blur-2xl animate-scale-in">
+        
+        {/* Glowing Top Ambient Header */}
+        <div className="relative pt-8 pb-6 px-6 text-center overflow-hidden bg-gradient-to-b from-brand-600/15 via-indigo-600/5 to-transparent">
+          {/* Subtle Background Glow Ring */}
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500" />
+          
+          {/* 3D-styled Logo Avatar */}
+          <div className="relative w-20 h-20 mx-auto mb-3.5 group">
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-pink-500 blur-lg opacity-70 group-hover:opacity-100 transition-opacity animate-pulse" />
+            <div className="relative w-full h-full rounded-3xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-brand-600/30 border border-white/30 transform group-hover:scale-105 transition-transform">
+              <ShieldCheck className="w-10 h-10 drop-shadow-md text-white" />
+            </div>
           </div>
-          <h2 className="text-xl font-extrabold tracking-tight">Kho Lưu Trữ ĐMQ</h2>
-          <p className="text-xs text-brand-100 mt-1">
-            Đăng nhập để truy cập kho ảnh & tập tin riêng tư của bạn
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/20 text-brand-600 dark:text-brand-400 text-[11px] font-bold tracking-wide uppercase mb-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Kho Lưu Trữ Đám Mây</span>
+          </div>
+
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            ĐMQ <span className="bg-gradient-to-r from-brand-500 via-indigo-500 to-pink-500 bg-clip-text text-transparent">Vault</span>
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
+            Lưu giữ ảnh nét căng, video 4K & tập tin riêng tư an toàn vĩnh viễn
           </p>
         </div>
 
-        {/* Tab switch */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegister(false);
-              setError(null);
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-              !isRegister
-                ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            <span>Đăng nhập</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegister(true);
-              setError(null);
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-              isRegister
-                ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Tạo tài khoản mới</span>
-          </button>
+        {/* Tab Switcher - Glass Pill */}
+        <div className="px-6">
+          <div className="flex p-1 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => {
+                sound.pop();
+                setIsRegister(false);
+                setError(null);
+              }}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                !isRegister
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-md shadow-slate-900/5 dark:shadow-slate-950/20'
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Đăng nhập</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sound.pop();
+                setIsRegister(true);
+                setError(null);
+              }}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                isRegister
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-md shadow-slate-900/5 dark:shadow-slate-950/20'
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Tạo tài khoản mới</span>
+            </button>
+          </div>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Nut Dang nhap bang Google */}
+          {/* Nút Đăng nhập bằng Google */}
           <div className="space-y-3">
             {(googleClientId || GOOGLE_CLIENT_ID) ? (
               <div
                 ref={googleBtnRef}
-                className="flex justify-center [&>div]:!w-full [&_iframe]:!w-full min-h-[40px]"
+                className="flex justify-center [&>div]:!w-full [&_iframe]:!w-full min-h-[44px]"
               />
             ) : (
               <button
                 type="button"
                 onClick={() => {
+                  sound.pop();
                   setError('Vui lòng thêm GOOGLE_CLIENT_ID trên Render để kích hoạt xác thực Google.');
                 }}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-full text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white dark:bg-slate-800/90 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.99] cursor-pointer"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
@@ -246,17 +290,17 @@ export default function AuthModal({ onAuthSuccess }) {
             )}
 
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase">
-                hoặc
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                hoặc tài khoản riêng
               </span>
-              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
             </div>
           </div>
 
           {/* Tên đăng nhập */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               Tên tài khoản (Username)
             </label>
             <div className="relative">
@@ -267,7 +311,7 @@ export default function AuthModal({ onAuthSuccess }) {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="VD: quang, user123..."
                 required
-                className="w-full pl-10 pr-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-brand-500 text-slate-800 dark:text-white"
+                className="w-full pl-10 pr-3.5 py-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800 dark:text-white transition-all"
               />
             </div>
           </div>
@@ -275,7 +319,7 @@ export default function AuthModal({ onAuthSuccess }) {
           {/* Tên hiển thị (chỉ khi đăng ký) */}
           {isRegister && (
             <div className="animate-fade-in">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Tên hiển thị (Tùy chọn)
               </label>
               <div className="relative">
@@ -284,8 +328,8 @@ export default function AuthModal({ onAuthSuccess }) {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="VD: Quang Nguyễn"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-brand-500 text-slate-800 dark:text-white"
+                  placeholder="VD: Quang Đặng Minh"
+                  className="w-full pl-10 pr-3.5 py-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800 dark:text-white transition-all"
                 />
               </div>
             </div>
@@ -293,7 +337,7 @@ export default function AuthModal({ onAuthSuccess }) {
 
           {/* Mật khẩu */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               Mật khẩu
             </label>
             <div className="relative">
@@ -302,14 +346,17 @@ export default function AuthModal({ onAuthSuccess }) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu..."
+                placeholder="Nhập mật khẩu bí mật..."
                 required
-                className="w-full pl-10 pr-10 py-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-brand-500 text-slate-800 dark:text-white"
+                className="w-full pl-10 pr-11 py-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800 dark:text-white transition-all"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                onClick={() => {
+                  sound.pop();
+                  setShowPassword(!showPassword);
+                }}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -318,8 +365,9 @@ export default function AuthModal({ onAuthSuccess }) {
 
           {/* Báo lỗi nếu có */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-xs font-medium animate-fade-in">
-              {error}
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium animate-fade-in flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -327,25 +375,42 @@ export default function AuthModal({ onAuthSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/25 transition-all disabled:opacity-50 cursor-pointer"
+            onClick={() => sound.pop()}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-500 hover:to-indigo-500 active:scale-[0.99] text-white rounded-2xl text-xs font-bold shadow-lg shadow-brand-500/25 transition-all disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang xử lý...</span>
+                <span>Đang xử lý bảo mật...</span>
               </>
             ) : isRegister ? (
               <>
                 <UserPlus className="w-4 h-4" />
-                <span>Đăng ký tài khoản</span>
+                <span>Đăng ký tài khoản ngay</span>
               </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                <span>Đăng nhập ngay</span>
+                <span>Đăng nhập vào ĐMQ</span>
               </>
             )}
           </button>
+
+          {/* Feature Badges Footer */}
+          <div className="pt-2 flex items-center justify-center gap-4 text-[11px] text-slate-400 dark:text-slate-500">
+            <div className="flex items-center gap-1">
+              <Shield className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Mã hóa 256-bit</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Cloud className="w-3.5 h-3.5 text-blue-500" />
+              <span>Đám Mây 25GB</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span>Siêu Tốc</span>
+            </div>
+          </div>
         </form>
       </div>
     </div>
