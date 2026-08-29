@@ -61,7 +61,7 @@ export default function MediaViewer({
   };
 
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}${file.path}`;
+    const url = file.path?.startsWith('http') ? file.path : `${window.location.origin}${file.path}`;
     await copyToClipboard(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

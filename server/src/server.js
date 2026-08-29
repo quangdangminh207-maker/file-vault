@@ -437,6 +437,10 @@ app.get('/api/files/:id/download', (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tập tin' });
     }
 
+    if (file.path && file.path.startsWith('http')) {
+      return res.redirect(file.path);
+    }
+
     const filePath = path.join(UPLOAD_DIR, file.storedName);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, message: 'Tập tin vật lý không tồn tại' });

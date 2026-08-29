@@ -31,7 +31,7 @@ export default function FileCard({
     file.mimeType
   );
 
-  const fileUrl = `${window.location.origin}${file.path}`;
+  const fileUrl = file.path?.startsWith('http') ? file.path : `${window.location.origin}${file.path}`;
 
   const handleCopyLink = async (e) => {
     e.stopPropagation();

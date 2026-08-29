@@ -56,7 +56,7 @@ export default function FileList({
   const allSelected = files.length > 0 && files.every((f) => selectedIds.includes(f.id));
 
   const handleCopyLink = async (file) => {
-    const fileUrl = `${window.location.origin}${file.path}`;
+    const fileUrl = file.path?.startsWith('http') ? file.path : `${window.location.origin}${file.path}`;
     await copyToClipboard(fileUrl);
     setCopiedId(file.id);
     setTimeout(() => setCopiedId(null), 1500);
