@@ -241,13 +241,19 @@ app.get('/api/files', authMiddleware, async (req, res) => {
     // Tự động đồng bộ và phục hồi toàn bộ ảnh/tệp từ Cloudinary nếu server vừa khởi động lại
     if (CLOUD_NAME && API_KEY && API_SECRET) {
       try {
-        const cloudResources = await cloudinary.api.resources({
-          type: 'upload',
-          prefix: 'file-vault-uploads',
-          max_results: 500
-        });
-        if (cloudResources && cloudResources.resources) {
-          db.syncCloudinaryFiles(cloudResources.resources, req.user.id);
+        const [imgRes, rawRes, vidRes] = await Promise.allSettled([
+          cloudinary.api.resources({ resource_type: 'image', type: 'upload', prefix: 'file-vault-uploads', max_results: 500 }),
+          cloudinary.api.resources({ resource_type: 'raw', type: 'upload', prefix: 'file-vault-uploads', max_results: 500 }),
+          cloudinary.api.resources({ resource_type: 'video', type: 'upload', prefix: 'file-vault-uploads', max_results: 500 }),
+        ]);
+
+        const allResources = [];
+        if (imgRes.status === 'fulfilled' && imgRes.value?.resources) allResources.push(...imgRes.value.resources);
+        if (rawRes.status === 'fulfilled' && rawRes.value?.resources) allResources.push(...rawRes.value.resources);
+        if (vidRes.status === 'fulfilled' && vidRes.value?.resources) allResources.push(...vidRes.value.resources);
+
+        if (allResources.length > 0) {
+          db.syncCloudinaryFiles(allResources, req.user.id);
         }
       } catch (err) {
         // Bỏ qua nếu Cloudinary API chưa sẵn sàng
