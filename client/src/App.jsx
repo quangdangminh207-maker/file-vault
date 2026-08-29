@@ -370,11 +370,7 @@ export default function App() {
                       if (h < 12) return 'Chào buổi sáng 🌅';
                       if (h < 18) return 'Chào buổi chiều ☀️';
                       return 'Chào buổi tối 🌙';
-                    })()},{' '}
-                    <span className="text-amber-200">
-                      {currentUser.displayName || currentUser.username}
-                    </span>
-                    !
+                    })()}!
                   </h1>
                   <p className="text-xs sm:text-sm text-brand-100 mt-1 max-w-xl">
                     Nơi lưu giữ ảnh nét căng, video chất lượng cao & những khoảnh khắc bất tử của nhóm! 📸✨
@@ -418,7 +414,7 @@ export default function App() {
                 )}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Hiển thị {files.length} tập tin của {currentUser.displayName || currentUser.username}
+                Hiển thị {files.length} tập tin trong kho lưu trữ
               </p>
             </div>
 
