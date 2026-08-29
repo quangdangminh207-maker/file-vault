@@ -1,7 +1,7 @@
 {
-  "name": "Kho Lưu Trữ - Nhóm Nói Xấu X2",
-  "short_name": "Nói Xấu X2",
-  "description": "Kho lưu trữ ảnh, video và tập tin riêng tư cho Nhóm Nói Xấu X2",
+  "name": "Kho Lưu Trữ ĐMQ",
+  "short_name": "ĐMQ",
+  "description": "Kho lưu trữ ảnh, video và tập tin riêng tư ĐMQ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

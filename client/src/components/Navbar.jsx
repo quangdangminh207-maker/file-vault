@@ -77,7 +77,7 @@ export default function Navbar({
             </div>
             <div className="hidden sm:block">
               <h1 className="text-base font-bold bg-gradient-to-r from-brand-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent leading-tight">
-                Nhóm Nói Xấu X2
+                ĐMQ
               </h1>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
                 Lưu trữ ảnh & tập tin
