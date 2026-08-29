@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Upload,
@@ -11,7 +11,8 @@ import {
   X,
   LogOut,
   User as UserIcon,
-  ChevronDown
+  ChevronDown,
+  Smartphone
 } from 'lucide-react';
 
 export default function Navbar({
@@ -32,6 +33,28 @@ export default function Navbar({
   setSortOrder,
 }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) {
+      alert('Để cài đặt ứng dụng:\n- Trên Chrome Android: Bấm menu 3 chấm (⋮) ➔ Chọn "Thêm vào Màn hình chính" hoặc "Cài đặt ứng dụng".\n- Trên Safari iPhone: Bấm nút Chia sẻ (hình vuông mũi tên lên) ➔ Chọn "Thêm vào MH chính".');
+      return;
+    }
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   const userInitial = (user?.displayName || user?.username || 'U').charAt(0).toUpperCase();
 
@@ -149,6 +172,16 @@ export default function Navbar({
             title={isDark ? 'Chuyển sang chế độ Sáng' : 'Chuyển sang chế độ Tối'}
           >
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+          </button>
+
+          {/* Nút Cài đặt App cho Điện thoại */}
+          <button
+            onClick={handleInstallClick}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            title="Cài đặt App vào điện thoại Android/iOS"
+          >
+            <Smartphone className="w-4 h-4 text-emerald-500" />
+            <span className="hidden md:inline">Cài App</span>
           </button>
 
           {/* Nút Tải lên chính */}
