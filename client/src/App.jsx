@@ -9,7 +9,9 @@ import RenameModal from './components/RenameModal';
 import StorageStatsModal from './components/StorageStatsModal';
 import BatchActionBar from './components/BatchActionBar';
 import AuthModal from './components/AuthModal';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles, Flame, Heart, Star, UploadCloud } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { sound } from './utils/audio';
 
 export default function App() {
   // Theme state
@@ -342,7 +344,68 @@ export default function App() {
         />
 
         {/* Nội dung cuộn được */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 relative z-10">
+          {/* Aurora Dynamic Glowing Blobs in Background */}
+          <div className="aurora-bg">
+            <div className="aurora-blob-1" />
+            <div className="aurora-blob-2" />
+            <div className="aurora-blob-3" />
+          </div>
+
+          {/* Banner chào mừng vui nhộn & Thống kê nhanh */}
+          {!searchQuery && activeCategory === 'all' && !favoriteOnly && (
+            <div className="relative mb-6 p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-brand-600/90 via-indigo-600/90 to-purple-600/90 text-white shadow-xl shadow-brand-500/15 overflow-hidden backdrop-blur-md border border-white/10 animate-fade-in">
+              <div className="absolute right-0 bottom-0 opacity-10 translate-x-8 translate-y-8 pointer-events-none">
+                <Sparkles className="w-64 h-64 text-white" />
+              </div>
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold mb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Kho Lưu Trữ ĐMQ • Siêu Nhanh & Vĩnh Viễn</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight">
+                    {(() => {
+                      const h = new Date().getHours();
+                      if (h < 12) return 'Chào buổi sáng 🌅';
+                      if (h < 18) return 'Chào buổi chiều ☀️';
+                      return 'Chào buổi tối 🌙';
+                    })()},{' '}
+                    <span className="text-amber-200">
+                      {currentUser.displayName || currentUser.username}
+                    </span>
+                    !
+                  </h1>
+                  <p className="text-xs sm:text-sm text-brand-100 mt-1 max-w-xl">
+                    Nơi lưu giữ ảnh nét căng, video chất lượng cao & những khoảnh khắc bất tử của nhóm! 📸✨
+                  </p>
+                </div>
+
+                {/* Mood reaction emojis vui nhộn */}
+                <div className="flex items-center gap-2 bg-white/15 backdrop-blur-md p-2 rounded-2xl border border-white/15 self-start md:self-auto">
+                  <span className="text-[11px] font-medium text-brand-100 mr-1 hidden sm:inline">Tâm trạng:</span>
+                  {['😎', '🔥', '🥳', '🚀', '❤️'].map((emoji, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        sound.heart();
+                        confetti({
+                          particleCount: 50,
+                          spread: 50,
+                          origin: { y: 0.6 },
+                        });
+                      }}
+                      className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/30 hover:scale-125 active:scale-95 transition-all text-sm flex items-center justify-center cursor-pointer"
+                      title="Bấm để bung pháo hoa!"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header khu vực nội dung */}
           <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
             <div>

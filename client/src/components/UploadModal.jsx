@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatBytes } from '../utils/formatters';
+import { sound } from '../utils/audio';
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB per chunk
 
@@ -169,6 +170,7 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
       }
 
       setProgress(100);
+      sound.success();
       confetti({
         particleCount: 80,
         spread: 60,
