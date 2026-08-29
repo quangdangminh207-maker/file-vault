@@ -22,10 +22,11 @@ function loadData() {
     if (!parsed.users) parsed.users = [];
     if (!parsed.sessions) parsed.sessions = {};
     if (!parsed.files) parsed.files = [];
+    if (!parsed.deletedIds) parsed.deletedIds = [];
     return parsed;
   } catch (error) {
     console.error('Lỗi khi đọc database:', error);
-    return { users: [], sessions: {}, files: [] };
+    return { users: [], sessions: {}, files: [], deletedIds: [] };
   }
 }
 
@@ -309,6 +310,10 @@ export const db = {
     if (!file) return null;
 
     data.files = data.files.filter(f => f.id !== id);
+    if (!data.deletedIds) data.deletedIds = [];
+    data.deletedIds.push(file.id);
+    if (file.storedName) data.deletedIds.push(file.storedName);
+    if (file.path) data.deletedIds.push(file.path);
     saveData(data);
     return file;
   },
@@ -319,6 +324,14 @@ export const db = {
     const deletedFiles = data.files.filter(f => set.has(f.id) && (!f.userId || f.userId === userId));
     const deletedIdSet = new Set(deletedFiles.map(f => f.id));
     data.files = data.files.filter(f => !deletedIdSet.has(f.id));
+
+    if (!data.deletedIds) data.deletedIds = [];
+    for (const f of deletedFiles) {
+      data.deletedIds.push(f.id);
+      if (f.storedName) data.deletedIds.push(f.storedName);
+      if (f.path) data.deletedIds.push(f.path);
+    }
+
     saveData(data);
     return deletedFiles;
   },
@@ -326,8 +339,14 @@ export const db = {
   syncCloudinaryFiles(resources = [], userId) {
     const data = loadData();
     let addedCount = 0;
+    const deletedSet = new Set(data.deletedIds || []);
 
     for (const res of resources) {
+      // Bo qua neu tep da bi nguoi dung xoa truoc do
+      if (deletedSet.has(res.public_id) || deletedSet.has(res.secure_url)) {
+        continue;
+      }
+
       // Kiem tra neu URL hoac public_id da ton tai trong data.json
       const exists = data.files.some(f => f.path === res.secure_url || f.storedName === res.public_id);
       if (!exists) {

@@ -490,15 +490,44 @@ app.patch('/api/files/:id/favorite', authMiddleware, (req, res) => {
   }
 });
 
+async function deleteFromCloudinary(file) {
+  if (!file) return;
+  try {
+    let publicId = file.storedName;
+    if (file.path && file.path.includes('cloudinary.com')) {
+      const parts = file.path.split('/');
+      const filenameWithExt = parts[parts.length - 1];
+      const folder = parts[parts.length - 2];
+      const nameWithoutExt = filenameWithExt.split('.')[0];
+      publicId = `${folder}/${nameWithoutExt}`;
+    }
+
+    const resourceType = file.category === 'media' || file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')
+      ? 'video'
+      : file.category === 'image' || file.mimeType?.startsWith('image/')
+      ? 'image'
+      : 'raw';
+
+    if (publicId && CLOUD_NAME && API_KEY && API_SECRET) {
+      await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    }
+  } catch (err) {
+    console.error('Lỗi khi xóa khỏi Cloudinary:', err.message);
+  }
+}
+
 // 8. Xóa 1 file
-app.delete('/api/files/:id', authMiddleware, (req, res) => {
+app.delete('/api/files/:id', authMiddleware, async (req, res) => {
   try {
     const file = db.delete(req.params.id, req.user.id);
     if (!file) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tập tin để xóa' });
     }
 
-    // Xóa file vật lý
+    // Xóa file trên Cloudinary
+    await deleteFromCloudinary(file);
+
+    // Xóa file vật lý cục bộ
     const filePath = path.join(UPLOAD_DIR, file.storedName);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -511,7 +540,7 @@ app.delete('/api/files/:id', authMiddleware, (req, res) => {
 });
 
 // 9. Xóa nhiều file (Batch Delete)
-app.post('/api/files/batch-delete', authMiddleware, (req, res) => {
+app.post('/api/files/batch-delete', authMiddleware, async (req, res) => {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -520,8 +549,9 @@ app.post('/api/files/batch-delete', authMiddleware, (req, res) => {
 
     const deletedFiles = db.deleteMultiple(ids, req.user.id);
 
-    // Xóa file vật lý
+    // Xóa file trên Cloudinary và cục bộ
     for (const f of deletedFiles) {
+      await deleteFromCloudinary(f);
       const filePath = path.join(UPLOAD_DIR, f.storedName);
       if (fs.existsSync(filePath)) {
         try {
