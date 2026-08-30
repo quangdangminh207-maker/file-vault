@@ -372,18 +372,21 @@ app.post('/api/upload/chunk-complete', authMiddleware, async (req, res) => {
     const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
     const targetPath = path.join(UPLOAD_DIR, uniqueName);
 
-    const writeStream = fs.createWriteStream(targetPath);
+    // Ghép các chunk một cách đồng bộ và an toàn tuyệt đối
+    if (fs.existsSync(targetPath)) {
+      fs.unlinkSync(targetPath);
+    }
 
     for (const chunkFile of chunkFiles) {
       const chunkPath = path.join(tempDir, chunkFile);
       if (fs.existsSync(chunkPath)) {
         const data = fs.readFileSync(chunkPath);
-        writeStream.write(data);
-        fs.unlinkSync(chunkPath); // Xóa chunk tạm
+        fs.appendFileSync(targetPath, data);
+        try {
+          fs.unlinkSync(chunkPath); // Xóa chunk tạm
+        } catch {}
       }
     }
-
-    writeStream.end();
 
     let filePath = `/uploads/${uniqueName}`;
     const cloudUrl = await uploadToCloudinaryIfConfigured(targetPath, mimeType || '');
@@ -495,11 +498,17 @@ async function deleteFromCloudinary(file) {
   try {
     let publicId = file.storedName;
     if (file.path && file.path.includes('cloudinary.com')) {
-      const parts = file.path.split('/');
-      const filenameWithExt = parts[parts.length - 1];
-      const folder = parts[parts.length - 2];
-      const nameWithoutExt = filenameWithExt.split('.')[0];
-      publicId = `${folder}/${nameWithoutExt}`;
+      const cleanPath = file.path.split('?')[0];
+      const match = cleanPath.match(/file-vault-uploads\/[^/.]+/);
+      if (match) {
+        publicId = match[0];
+      } else {
+        const parts = cleanPath.split('/');
+        const filename = parts[parts.length - 1];
+        const folder = parts[parts.length - 2];
+        const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename;
+        publicId = `${folder}/${nameWithoutExt}`;
+      }
     }
 
     const resourceType = file.category === 'media' || file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')
