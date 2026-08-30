@@ -491,30 +491,38 @@ app.patch('/api/files/:id/favorite', authMiddleware, (req, res) => {
 });
 
 async function deleteFromCloudinary(file) {
-  if (!file) return;
+  if (!file || !CLOUD_NAME || !API_KEY || !API_SECRET) return;
   try {
-    let publicId = file.storedName;
+    let publicIds = [];
+    if (file.storedName) publicIds.push(file.storedName);
+
     if (file.path && file.path.includes('cloudinary.com')) {
       const match = file.path.match(/file-vault-uploads\/([^.?#]+)/);
       if (match && match[1]) {
-        publicId = `file-vault-uploads/${match[1]}`;
-      } else {
-        const parts = file.path.split('/');
-        const filenameWithExt = parts[parts.length - 1];
-        const folder = parts[parts.length - 2];
-        const nameWithoutExt = filenameWithExt.split('.')[0];
-        publicId = `${folder}/${nameWithoutExt}`;
+        publicIds.push(`file-vault-uploads/${match[1]}`);
+        publicIds.push(match[1]);
       }
+      const parts = file.path.split('/');
+      const lastPart = parts[parts.length - 1];
+      const nameOnly = lastPart.split('.')[0];
+      publicIds.push(`file-vault-uploads/${nameOnly}`);
+      publicIds.push(nameOnly);
+      publicIds.push(`file-vault-uploads/${lastPart}`);
     }
 
-    const resourceType = file.category === 'media' || file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')
-      ? 'video'
-      : file.category === 'image' || file.mimeType?.startsWith('image/')
-      ? 'image'
-      : 'raw';
+    // Lọc các publicId duy nhất
+    publicIds = [...new Set(publicIds.filter(Boolean))];
 
-    if (publicId && CLOUD_NAME && API_KEY && API_SECRET) {
-      await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    const types = ['image', 'video', 'raw'];
+    for (const pid of publicIds) {
+      for (const t of types) {
+        try {
+          const res = await cloudinary.uploader.destroy(pid, { resource_type: t, invalidate: true });
+          if (res && res.result === 'ok') {
+            break;
+          }
+        } catch {}
+      }
     }
   } catch (err) {
     console.error('Lỗi khi xóa khỏi Cloudinary:', err.message);
